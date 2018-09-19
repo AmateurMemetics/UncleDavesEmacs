@@ -201,6 +201,38 @@ The theme is great, really, but some of the concepts just suck with powerline.
                                                 :bold t :height 1.0))))))
 #+END_SRC
 
+#+BEGIN_SRC emacs-lisp
+(let ((alist '((33 . ".\\(?:\\(?:==\\|!!\\)\\|[!=]\\)")
+               (35 . ".\\(?:###\\|##\\|_(\\|[#(?[_{]\\)")
+               (36 . ".\\(?:>\\)")
+               (37 . ".\\(?:\\(?:%%\\)\\|%\\)")
+               (38 . ".\\(?:\\(?:&&\\)\\|&\\)")
+               (42 . ".\\(?:\\(?:\\*\\*/\\)\\|\\(?:\\*[*/]\\)\\|[*/>]\\)")
+               (43 . ".\\(?:\\(?:\\+\\+\\)\\|[+>]\\)")
+               (45 . ".\\(?:\\(?:-[>-]\\|<<\\|>>\\)\\|[<>}~-]\\)")
+               (46 . ".\\(?:\\(?:\\.[.<]\\)\\|[.=-]\\)")
+               (47 . ".\\(?:\\(?:\\*\\*\\|//\\|==\\)\\|[*/=>]\\)")
+               (48 . ".\\(?:x[a-zA-Z]\\)")
+               (58 . ".\\(?:::\\|[:=]\\)")
+               (59 . ".\\(?:;;\\|;\\)")
+               (60 . ".\\(?:\\(?:!--\\)\\|\\(?:~~\\|->\\|\\$>\\|\\*>\\|\\+>\\|--\\|<[<=-]\\|=[<=>]\\||>\\)\\|[*$+~/<=>|-]\\)")
+               (61 . ".\\(?:\\(?:/=\\|:=\\|<<\\|=[=>]\\|>>\\)\\|[<=>~]\\)")
+               (62 . ".\\(?:\\(?:=>\\|>[=>-]\\)\\|[=>-]\\)")
+               (63 . ".\\(?:\\(\\?\\?\\)\\|[:=?]\\)")
+               (91 . ".\\(?:]\\)")
+               (92 . ".\\(?:\\(?:\\\\\\\\\\)\\|\\\\\\)")
+               (94 . ".\\(?:=\\)")
+               (119 . ".\\(?:ww\\)")
+               (123 . ".\\(?:-\\)")
+               (124 . ".\\(?:\\(?:|[=|]\\)\\|[=>|]\\)")
+               (126 . ".\\(?:~>\\|~~\\|[>=@~-]\\)")
+               )
+             ))
+  (dolist (char-regexp alist)
+    (set-char-table-range composition-function-table (car char-regexp)
+                          `([,(cdr char-regexp) 0 font-shape-gstring]))))
+#+END_SRC
+
 * Basic Interface Settings
 These are setting that do not depend on packages and are built-in enhancements to the UI.
 
@@ -265,221 +297,6 @@ Lets us use asynchronous processes wherever possible, pretty useful.
   (use-package async
     :ensure t
     :init (dired-async-mode 1))
-#+END_SRC
-
-* Window Manager
-Everything regarding the WM or DE-like functionality is bundled here, remove the entire section if you do not wish to use =exwm=.
-
-** exwm
-The only time I actually had to use comments, this is for ease of removal if you happen to not like exwm.
-*** Installation
-#+BEGIN_SRC emacs-lisp
-  (use-package exwm
-    :ensure t
-    :config
-
-      ;; necessary to configure exwm manually
-      (require 'exwm-config)
-
-      ;; fringe size, most people prefer 1 
-      (fringe-mode 3)
-      
-      ;; emacs as a daemon, use "emacsclient <filename>" to seamlessly edit files from the terminal directly in the exwm instance
-      (server-start)
-
-      ;; this fixes issues with ido mode, if you use helm, get rid of it
-      (exwm-config-ido)
-
-      ;; a number between 1 and 9, exwm creates workspaces dynamically so I like starting out with 1
-      (setq exwm-workspace-number 1)
-
-      ;; this is a way to declare truly global/always working keybindings
-      ;; this is a nifty way to go back from char mode to line mode without using the mouse
-      (exwm-input-set-key (kbd "s-r") #'exwm-reset)
-      (exwm-input-set-key (kbd "s-k") #'exwm-workspace-delete)
-      (exwm-input-set-key (kbd "s-w") #'exwm-workspace-swap)
-
-      ;; the next loop will bind s-<number> to switch to the corresponding workspace
-      (dotimes (i 10)
-        (exwm-input-set-key (kbd (format "s-%d" i))
-                            `(lambda ()
-                               (interactive)
-                               (exwm-workspace-switch-create ,i))))
-
-      ;; the simplest launcher, I keep it in only if dmenu eventually stopped working or something
-      (exwm-input-set-key (kbd "s-&")
-                          (lambda (command)
-                            (interactive (list (read-shell-command "$ ")))
-                            (start-process-shell-command command nil command)))
-
-      ;; an easy way to make keybindings work *only* in line mode
-      (push ?\C-q exwm-input-prefix-keys)
-      (define-key exwm-mode-map [?\C-q] #'exwm-input-send-next-key)
-
-      ;; simulation keys are keys that exwm will send to the exwm buffer upon inputting a key combination
-      (exwm-input-set-simulation-keys
-       '(
-         ;; movement
-         ([?\C-b] . left)
-         ([?\M-b] . C-left)
-         ([?\C-f] . right)
-         ([?\M-f] . C-right)
-         ([?\C-p] . up)
-         ([?\C-n] . down)
-         ([?\C-a] . home)
-         ([?\C-e] . end)
-         ([?\M-v] . prior)
-         ([?\C-v] . next)
-         ([?\C-d] . delete)
-         ([?\C-k] . (S-end delete))
-         ;; cut/paste
-         ([?\C-w] . ?\C-x)
-         ([?\M-w] . ?\C-c)
-         ([?\C-y] . ?\C-v)
-         ;; search
-         ([?\C-s] . ?\C-f)))
-
-      ;; this little bit will make sure that XF86 keys work in exwm buffers as well
-      (dolist (k '(XF86AudioLowerVolume
-                 XF86AudioRaiseVolume
-                 XF86PowerOff
-                 XF86AudioMute
-                 XF86AudioPlay
-                 XF86AudioStop
-                 XF86AudioPrev
-                 XF86AudioNext
-                 XF86ScreenSaver
-                 XF68Back
-                 XF86Forward
-                 Scroll_Lock
-                 print))
-      (cl-pushnew k exwm-input-prefix-keys))
-      
-      ;; this just enables exwm, it started automatically once everything is ready
-      (exwm-enable))
-#+END_SRC
-
-** Launchers
-Since I do not use a GUI launcher and do not have an external one like dmenu or rofi,
-I figured the best way to launch my most used applications would be direct emacsy
-keybindings.
-
-*** dmenu for emacs
-Who would've thought this was available, together with ido-vertical it's a nice large menu
-with its own cache for most launched applications.
-#+BEGIN_SRC emacs-lisp
-  (use-package dmenu
-    :ensure t
-    :bind
-      ("s-SPC" . 'dmenu))
-#+END_SRC
-
-*** Functions to start processes
-I guess this goes without saying but you absolutely have to change the arguments
-to suit the software that you are using. What good is a launcher for discord if you don't use it at all.
-#+BEGIN_SRC emacs-lisp
-  (defun exwm-async-run (name)
-    (interactive)
-    (start-process name nil name))
-
-  (defun daedreth/launch-discord ()
-    (interactive)
-    (exwm-async-run "discord"))
-
-  (defun daedreth/launch-browser ()
-    (interactive)
-    (exwm-async-run "qutebrowser"))
-
-  (defun daedreth/lock-screen ()
-    (interactive)
-    (exwm-async-run "slock"))
-
-  (defun daedreth/shutdown ()
-    (interactive)
-    (start-process "halt" nil "sudo" "halt"))
-#+END_SRC
-
-*** Keybindings to start processes
-These can be modified as well, suit yourself.
-#+BEGIN_SRC emacs-lisp
-  (global-set-key (kbd "s-d") 'daedreth/launch-discord)
-  (global-set-key (kbd "<s-tab>") 'daedreth/launch-browser)
-  (global-set-key (kbd "<XF86ScreenSaver>") 'daedreth/lock-screen)
-  (global-set-key (kbd "<XF86PowerOff>") 'daedreth/shutdown)
-#+END_SRC
-
-** Audio controls
-This is a set of bindings to my XF86 keys that invokes pulsemixer with the correct parameters
-
-*** Volume modifier
-It goes without saying that you are free to modify the modifier as you see fit, 4 is good enough for me though.
-#+BEGIN_SRC emacs-lisp
-(defconst volumeModifier "4")
-#+END_SRC
-
-*** Functions to start processes
-#+BEGIN_SRC emacs-lisp
-  (defun audio/mute ()
-    (interactive)
-    (start-process "audio-mute" nil "pulsemixer" "--toggle-mute"))
-
-  (defun audio/raise-volume ()
-    (interactive)
-    (start-process "raise-volume" nil "pulsemixer" "--change-volume" (concat "+" volumeModifier)))
-
-  (defun audio/lower-volume ()
-    (interactive)
-    (start-process "lower-volume" nil "pulsemixer" "--change-volume" (concat "-" volumeModifier)))
-#+END_SRC
-
-*** Keybindings to start processes
-You can also change those if you'd like, but I highly recommend keeping 'em the same, chances are, they will just work.
-#+BEGIN_SRC emacs-lisp
-(global-set-key (kbd "<XF86AudioMute>") 'audio/mute)
-(global-set-key (kbd "<XF86AudioRaiseVolume>") 'audio/raise-volume)
-(global-set-key (kbd "<XF86AudioLowerVolume>") 'audio/lower-volume)
-#+END_SRC
-
-** Screenshots
-I don't need scrot to take screenshots, or shutter or whatever tools you might have. This is enough.
-These won't work in the terminal version or the virtual console, obvious reasons.
-
-*** Screenshotting the entire screen
-#+BEGIN_SRC emacs-lisp
-  (defun daedreth/take-screenshot ()
-    "Takes a fullscreen screenshot of the current workspace"
-    (interactive)
-    (when window-system
-    (loop for i downfrom 3 to 1 do
-          (progn
-            (message (concat (number-to-string i) "..."))
-            (sit-for 1)))
-    (message "Cheese!")
-    (sit-for 1)
-    (start-process "screenshot" nil "import" "-window" "root" 
-               (concat (getenv "HOME") "/" (subseq (number-to-string (float-time)) 0 10) ".png"))
-    (message "Screenshot taken!")))
-  (global-set-key (kbd "<print>") 'daedreth/take-screenshot)
-#+END_SRC
-
-*** Screenshotting a region
-#+BEGIN_SRC emacs-lisp
-  (defun daedreth/take-screenshot-region ()
-    "Takes a screenshot of a region selected by the user."
-    (interactive)
-    (when window-system
-    (call-process "import" nil nil nil ".newScreen.png")
-    (call-process "convert" nil nil nil ".newScreen.png" "-shave" "1x1"
-                  (concat (getenv "HOME") "/" (subseq (number-to-string (float-time)) 0 10) ".png"))
-    (call-process "rm" nil nil nil ".newScreen.png")))
-  (global-set-key (kbd "<Scroll_Lock>") 'daedreth/take-screenshot-region)
-#+END_SRC
-
-** Default browser
-I use qutebrowser, so that's what I'll set up.
-#+BEGIN_SRC emacs-lisp
-  (setq browse-url-browser-function 'browse-url-generic
-        browse-url-generic-program "qutebrowser")
 #+END_SRC
 
 * Projectile
@@ -558,76 +375,19 @@ We are not going to have =relative-linum-mode= in every major mode, so this is u
   (setq column-number-mode t)
 #+END_SRC
 
-** Clock
-If you prefer the 12hr-format, change the variable to =nil= instead of =t=.
-
-*** Time format
-#+BEGIN_SRC emacs-lisp
-  (setq display-time-24hr-format t)
-  (setq display-time-format "%H:%M - %d %B %Y")
-#+END_SRC
-
-*** Enabling the mode
-This turns on the clock globally.
-#+BEGIN_SRC emacs-lisp
-  (display-time-mode 1)
-#+END_SRC
-
-** Battery indicator
-A package called =fancy-battery= will be used if we are in GUI emacs, otherwise the built in battery-mode will be used.
-Fancy battery has very odd colors if used in the tty, hence us disabling it.
-#+BEGIN_SRC emacs-lisp
-  (use-package fancy-battery
-    :ensure t
-    :config
-      (setq fancy-battery-show-percentage t)
-      (setq battery-update-interval 15)
-      (if window-system
-        (fancy-battery-mode)
-        (display-battery-mode)))
-#+END_SRC
-
-** System monitor
-A teeny-tiny system monitor that can be enabled or disabled at runtime, useful for checking performance
-with power-hungry processes in ansi-term
-
-symon can be toggled on and off with =Super + h=.
-#+BEGIN_SRC emacs-lisp
-  (use-package symon
-    :ensure t
-    :bind
-    ("s-h" . symon-mode))
-#+END_SRC
-
-* File manager
-+I abandoned treemacs, looking for an alternative as we speak+
-I found an alternative, Sunrise Commander!
-I'm not changing much, just disabling the mouse and adding buttons.
-#+BEGIN_SRC emacs-lisp
-  (use-package sunrise-commander
-    :ensure t
-    :init
-      (use-package sunrise-x-buttons :ensure t)
-      (use-package sunrise-x-modeline :ensure t)
-      (setq sr-cursor-follows-mouse nil)
-      (define-key sr-mode-map [mouse-1] nil)
-      (define-key sr-mode-map [mouse-movement] nil)
-    :bind ("s-t" . sunrise))
-#+END_SRC
-
 * The terminal
 I have used urxvt for years, and I miss it sometimes, but ansi-term is enough for most of my tasks.
 
-** Default shell should be bash
-I don't know why this is a thing, but asking me what shell to launch every single
-time I open a terminal makes me want to slap babies, this gets rid of it.
-This goes without saying but you can replace bash with your shell of choice.
-#+BEGIN_SRC emacs-lisp
-  (defvar my-term-shell "/bin/bash")
-  (defadvice ansi-term (before force-bash)
-    (interactive (list my-term-shell)))
-  (ad-activate 'ansi-term)
-#+END_SRC
+# ** Default shell should be bash
+# I don't know why this is a thing, but asking me what shell to launch every single
+# time I open a terminal makes me want to slap babies, this gets rid of it.
+# This goes without saying but you can replace bash with your shell of choice.
+# #+BEGIN_SRC emacs-lisp
+#   (defvar my-term-shell "/bin/bash")
+#   (defadvice ansi-term (before force-bash)
+#     (interactive (list my-term-shell)))
+#   (ad-activate 'ansi-term)
+# #+END_SRC
 
 ** Easy to remember keybinding
 In loving memory of bspwm, Super + Enter opens a new terminal, old habits die hard.
@@ -1273,18 +1033,6 @@ great. It's easy and intuitive to use, shows its options at a keypress and much 
     ("M-g" . magit-status))
 #+END_SRC
 
-* Remote editing
-I have no need to directly edit files over SSH, but what I do need is a way to edit files as root.
-Opening up nano in a terminal as root to play around with grubs default settings is a no-no, this solves that.
-
-** Editing with sudo
-Pretty self-explanatory, useful as hell if you use exwm.
-#+BEGIN_SRC emacs-lisp
-  (use-package sudo-edit
-    :ensure t
-    :bind
-      ("s-e" . sudo-edit))
-#+END_SRC
 * Org
 One of the absolute greatest features of emacs is called "org-mode".
 This very file has been written in org-mode, a lot of other configurations are written in org-mode, same goes for
@@ -1396,7 +1144,7 @@ This also hides some of the channel messages to avoid cluttering the buffer.
 The other line changes the prompt for each channel buffer to match the channel name,
 this way you always know who you are typing to.
 #+BEGIN_SRC emacs-lisp
-  (setq erc-nick "daedreth")
+  (setq erc-nick "slord")
   (setq erc-prompt (lambda () (concat "[" (buffer-name) "]")))
   (setq erc-hide-list '("JOIN" "PART" "QUIT"))
 #+END_SRC
@@ -1404,8 +1152,7 @@ this way you always know who you are typing to.
 *** Poor mans selectable server list
 What it says on the tin, this changes the =erc= history to include the server I connect to often.
 #+BEGIN_SRC emacs-lisp
-  (setq erc-server-history-list '("irc.freenode.net"
-                                  "localhost"))
+  (setq erc-server-history-list '("irc.freenode.net"))
 #+END_SRC
 
 *** Nick highlighting
@@ -1415,91 +1162,4 @@ You can even highlight nicks to make the buffers a bit more visually pleasing an
   :ensure t
   :config
     (erc-update-modules))
-#+END_SRC
-
-** rich presence for discord
-Memes, but it's fun and tiny.
-#+BEGIN_SRC emacs-lisp
-  (use-package elcord
-    :ensure t)
-#+END_SRC
-
-* Media
-Why bother with an external media manager when emacs is a thing.
-EMMS is huge, incredibly powerful and luckily well documented.
-All I need it for is to play music and video, that's it.
-I also need it to display metadata on the modeline correctly, which it does with mpd automatically.
-
-** EMMS with mpd
-There is many backends, many players and codecs for EMMS, we use mpd now.
-
-*** Basic setup for mpd
-The non XF86 keys are made to be somewhat logical to follow and easy to remember.
-At the bottom part of the configuration, you will notice how XF86 keys are used
-by default, so unless you keyboard is broken it should work out of the box.
-Obviously you might have to adjust /server-name/ and /server-port/ to fit your configuration.
-#+BEGIN_SRC emacs-lisp
-  (use-package emms
-    :ensure t
-    :config
-      (require 'emms-setup)
-      (require 'emms-player-mpd)
-      (emms-all) ; don't change this to values you see on stackoverflow questions if you expect emms to work
-      (setq emms-seek-seconds 5)
-      (setq emms-player-list '(emms-player-mpd))
-      (setq emms-info-functions '(emms-info-mpd))
-      (setq emms-player-mpd-server-name "localhost")
-      (setq emms-player-mpd-server-port "6601")
-    :bind
-      ("s-m p" . emms)
-      ("s-m b" . emms-smart-browse)
-      ("s-m r" . emms-player-mpd-update-all-reset-cache)
-      ("<XF86AudioPrev>" . emms-previous)
-      ("<XF86AudioNext>" . emms-next)
-      ("<XF86AudioPlay>" . emms-pause)
-      ("<XF86AudioStop>" . emms-stop))
-#+END_SRC
-
-*** MPC Setup
-**** Setting the default port
-We use non-default settings for the socket, to use the built in =mpc= functionality we need to set up a variable.
-Adjust according to your setup.
-#+BEGIN_SRC emacs-lisp
-  (setq mpc-host "localhost:6601")
-#+END_SRC
-
-*** Some more fun stuff
-**** Starting the daemon from within emacs
-If you have an absolutely massive music library, it might be a good idea to get rid of =mpc-update=
-and only invoke it manually when needed.
-#+BEGIN_SRC emacs-lisp
-  (defun mpd/start-music-daemon ()
-    "Start MPD, connects to it and syncs the metadata cache."
-    (interactive)
-    (shell-command "mpd")
-    (mpd/update-database)
-    (emms-player-mpd-connect)
-    (emms-cache-set-from-mpd-all)
-    (message "MPD Started!"))
-  (global-set-key (kbd "s-m c") 'mpd/start-music-daemon)
-#+END_SRC
-
-**** Killing the daemon from within emacs
-#+BEGIN_SRC emacs-lisp
-  (defun mpd/kill-music-daemon ()
-    "Stops playback and kill the music daemon."
-    (interactive)
-    (emms-stop)
-    (call-process "killall" nil nil nil "mpd")
-    (message "MPD Killed!"))
-  (global-set-key (kbd "s-m k") 'mpd/kill-music-daemon)
-#+END_SRC
-**** Updating the database easily.
-#+BEGIN_SRC emacs-lisp
-  (defun mpd/update-database ()
-    "Updates the MPD database synchronously."
-    (interactive)
-    (call-process "mpc" nil nil nil "update")
-    (message "MPD Database Updated!"))
-  (global-set-key (kbd "s-m u") 'mpd/update-database)
 #+END_SRC
